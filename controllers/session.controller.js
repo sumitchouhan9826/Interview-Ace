@@ -54,3 +54,27 @@ export const getSessionById = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Delete session and its questions
+// @route   DELETE /api/session/:id
+// @access  Private
+export const deleteSession = async (req, res, next) => {
+  try {
+    const session = await Session.findById(req.params.id);
+
+    if (!session || session.userId.toString() !== req.user._id.toString()) {
+      res.status(404);
+      throw new Error('Session not found or not authorized');
+    }
+
+    // Delete associated questions
+    await Question.deleteMany({ sessionId: session._id });
+    
+    // Delete the session
+    await session.deleteOne();
+
+    res.json({ message: 'Session and associated questions removed' });
+  } catch (error) {
+    next(error);
+  }
+};
