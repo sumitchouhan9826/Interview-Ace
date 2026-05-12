@@ -2,7 +2,7 @@ import fs from 'fs';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Models to try in order (first available wins)
-const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash-8b", "gemini-1.5-pro", 'gemini-1.5-flash'];
+const MODELS = ["gemini-1.5-flash-8b"];
 /**
  * Extract raw text from a PDF file on disk.
  * Uses dynamic import() to load the CJS-only pdf-parse package in ESM.
