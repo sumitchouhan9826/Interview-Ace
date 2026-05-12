@@ -1,10 +1,19 @@
 import fs from 'fs';
 import Groq from "groq-sdk";
 
-// Initialize Groq
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+let groq = null;
+
+const getGroqClient = () => {
+  if (!groq) {
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error('GROQ_API_KEY is not defined in environment variables');
+    }
+    groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+    });
+  }
+  return groq;
+};
 
 const MODEL = "llama-3.3-70b-versatile";
 
@@ -35,8 +44,9 @@ export const extractTextFromPDF = async (filePath) => {
  */
 const generateWithGroq = async (prompt) => {
   try {
+    const client = getGroqClient();
     console.log(`[Resume] Calling Groq with model: ${MODEL}`);
-    const completion = await groq.chat.completions.create({
+    const completion = await client.chat.completions.create({
       messages: [
         {
           role: "user",
@@ -116,12 +126,7 @@ const safeParseJSON = (raw) => {
  * @param {number} count – number of questions to generate
  * @returns {Promise<{role: string, experienceLevel: string, questions: Array<{question: string, answer: string}>}>}
  */
-export const analyzeResumeWithGemini = async (resumeText, count = 5) => {
-  if (!process.env.GROQ_API_KEY) {
-    console.warn('[Resume] GROQ_API_KEY is not set – returning mock data');
-    return getMockResumeAnalysis(count);
-  }
-
+export const analyzeResumeWithGroq = async (resumeText, count = 5) => {
   try {
     const prompt = `You are a senior technical interviewer. Below is a candidate's resume.
 

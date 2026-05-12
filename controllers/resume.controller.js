@@ -2,7 +2,7 @@ import Session from '../models/Session.js';
 import Question from '../models/Question.js';
 import {
   extractTextFromPDF,
-  analyzeResumeWithGemini,
+  analyzeResumeWithGroq,
   cleanupFile,
 } from '../services/resumeAnalysis.service.js';
 
@@ -22,8 +22,8 @@ export const uploadResume = async (req, res, next) => {
     // 2. Extract text from PDF
     const resumeText = await extractTextFromPDF(filePath);
 
-    // 3. Send to Gemini for analysis
-    const analysis = await analyzeResumeWithGemini(resumeText);
+    // 3. Send to Groq for analysis
+    const analysis = await analyzeResumeWithGroq(resumeText);
 
     // 4. Create a session of type "resume-based"
     const session = await Session.create({

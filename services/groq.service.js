@@ -1,9 +1,18 @@
 import Groq from "groq-sdk";
 
-// Initialize Groq
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+let groq = null;
+
+const getGroqClient = () => {
+  if (!groq) {
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error('GROQ_API_KEY is not defined in environment variables');
+    }
+    groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+    });
+  }
+  return groq;
+};
 
 const MODEL = "llama-3.3-70b-versatile";
 
@@ -12,8 +21,10 @@ const MODEL = "llama-3.3-70b-versatile";
  */
 const generateWithGroq = async (prompt) => {
   try {
+    const client = getGroqClient();
     console.log(`[Groq] Calling with model: ${MODEL}`);
-    const completion = await groq.chat.completions.create({
+    
+    const completion = await client.chat.completions.create({
       messages: [
         {
           role: "user",
@@ -21,8 +32,6 @@ const generateWithGroq = async (prompt) => {
         },
       ],
       model: MODEL,
-      // Optional: enforce JSON if the prompt asks for it
-      // response_format: { type: "json_object" } 
     });
 
     const text = completion.choices[0].message.content;
@@ -91,11 +100,6 @@ const safeParseJSON = (raw) => {
 // ✅ Generate Questions
 export const generateInterviewQuestions = async (role, experienceLevel, count = 3) => {
   try {
-    if (!process.env.GROQ_API_KEY) {
-      console.warn('[Groq] GROQ_API_KEY is not set!');
-      return getDefaultQuestions(count);
-    }
-
     const prompt = `You are an expert technical interviewer. Generate ${count} interview questions and their detailed answers for a ${role} position. The candidate has an experience level of: ${experienceLevel}.
     Format the response EXACTLY as a JSON array of objects, with each object having a "question" and "answer".
     Return ONLY raw JSON.`;
@@ -125,10 +129,6 @@ export const generateInterviewQuestions = async (role, experienceLevel, count = 
 // ✅ Generate Explanation
 export const generateExplanation = async (question, answer) => {
   try {
-    if (!process.env.GROQ_API_KEY) {
-      return "Fallback Explanation (GROQ_API_KEY not set)";
-    }
-
     const prompt = `Explain in simple terms:
 
 Question: ${question}

@@ -1,6 +1,6 @@
 import Question from '../models/Question.js';
 import Session from '../models/Session.js';
-import { generateInterviewQuestions, generateExplanation } from '../services/gemini.service.js';
+import { generateInterviewQuestions, generateExplanation } from '../services/groq.service.js';
 
 // @desc    Generate questions for a session
 // @route   POST /api/question/generate
@@ -15,7 +15,7 @@ export const generateQuestions = async (req, res, next) => {
       throw new Error('Session not found');
     }
 
-    // Call Gemini Service
+    // Call Groq Service
     const generatedData = await generateInterviewQuestions(session.role, session.experienceLevel, 5);
 
     // Save questions to DB
