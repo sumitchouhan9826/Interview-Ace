@@ -1,10 +1,10 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 
 let genAI = null;
 
 // Models to try in order (first available wins)
-const MODELS =["gemini-1.5-flash-8b"];
+const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
 
 const getGenAI = () => {
   if (!genAI) {
@@ -12,7 +12,7 @@ const getGenAI = () => {
       console.warn('[Gemini] GEMINI_API_KEY is not set!');
       return null;
     }
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
   return genAI;
 };
@@ -27,10 +27,11 @@ const generateWithFallback = async (ai, prompt) => {
   for (const modelName of MODELS) {
     try {
       console.log(`[Gemini] Trying model: ${modelName}`);
-      const model = ai.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+      });
+      const text = response.text;
       console.log(`[Gemini] Success with ${modelName}, response length: ${text.length}`);
       return text;
     } catch (err) {

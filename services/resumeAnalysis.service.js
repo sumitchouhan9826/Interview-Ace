@@ -1,8 +1,8 @@
 import fs from 'fs';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 // Models to try in order (first available wins)
-const MODELS = ["gemini-1.5-flash-8b"];
+const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
 /**
  * Extract raw text from a PDF file on disk.
  * Uses dynamic import() to load the CJS-only pdf-parse package in ESM.
@@ -35,10 +35,11 @@ const generateWithFallback = async (ai, prompt) => {
   for (const modelName of MODELS) {
     try {
       console.log(`[Resume] Trying model: ${modelName}`);
-      const model = ai.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+      });
+      const text = response.text;
       console.log(`[Resume] Success with ${modelName}, response length: ${text.length}`);
       return text;
     } catch (err) {
@@ -117,7 +118,7 @@ export const analyzeResumeWithGemini = async (resumeText, count = 5) => {
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     const prompt = `You are a senior technical interviewer. Below is a candidate's resume.
 
