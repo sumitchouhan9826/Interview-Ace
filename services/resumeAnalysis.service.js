@@ -2,7 +2,7 @@ import fs from 'fs';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Models to try in order (first available wins)
-const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+const MODELS = ['gemini-1.5-flash','gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
 /**
  * Extract raw text from a PDF file on disk.
