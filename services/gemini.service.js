@@ -1,50 +1,41 @@
-import { GoogleGenAI } from '@google/genai';
+import Groq from "groq-sdk";
 
+// Initialize Groq
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
-let genAI = null;
-
-// Models to try in order (first available wins)
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
-
-const getGenAI = () => {
-  if (!genAI) {
-    if (!process.env.GEMINI_API_KEY) {
-      console.warn('[Gemini] GEMINI_API_KEY is not set!');
-      return null;
-    }
-    genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  }
-  return genAI;
-};
+const MODEL = "llama-3.3-70b-versatile";
 
 /**
- * Try generating content with model fallback.
- * Attempts each model in MODELS list; falls back to next on failure.
+ * Generate content using Groq API.
  */
-const generateWithFallback = async (ai, prompt) => {
-  let lastError = null;
+const generateWithGroq = async (prompt) => {
+  try {
+    console.log(`[Groq] Calling with model: ${MODEL}`);
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: MODEL,
+      // Optional: enforce JSON if the prompt asks for it
+      // response_format: { type: "json_object" } 
+    });
 
-  for (const modelName of MODELS) {
-    try {
-      console.log(`[Gemini] Trying model: ${modelName}`);
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-      });
-      const text = response.text;
-      console.log(`[Gemini] Success with ${modelName}, response length: ${text.length}`);
-      return text;
-    } catch (err) {
-      console.warn(`[Gemini] ${modelName} failed: ${err.message}`);
-      lastError = err;
-    }
+    const text = completion.choices[0].message.content;
+    console.log(`[Groq] Success, response length: ${text.length}`);
+    return text;
+  } catch (err) {
+    console.error(`[Groq] Failed: ${err.message}`);
+    throw err;
   }
-
-  throw lastError || new Error('All Gemini models failed');
 };
 
 /**
- * Safely extract and parse JSON from Gemini's response text.
+ * Safely extract and parse JSON from response text.
  * Handles markdown fences, leading/trailing prose, etc.
  */
 const safeParseJSON = (raw) => {
@@ -60,7 +51,7 @@ const safeParseJSON = (raw) => {
   let closeChar = '';
 
   if (startArr === -1 && startObj === -1) {
-    throw new Error('No JSON structure found in Gemini response');
+    throw new Error('No JSON structure found in response');
   } else if (startArr === -1) {
     startIndex = startObj; openChar = '{'; closeChar = '}';
   } else if (startObj === -1) {
@@ -90,7 +81,7 @@ const safeParseJSON = (raw) => {
   }
 
   if (endIndex === -1) {
-    throw new Error('Malformed JSON in Gemini response – no matching bracket');
+    throw new Error('Malformed JSON in response – no matching bracket');
   }
 
   const jsonStr = text.substring(startIndex, endIndex + 1);
@@ -100,31 +91,33 @@ const safeParseJSON = (raw) => {
 // ✅ Generate Questions
 export const generateInterviewQuestions = async (role, experienceLevel, count = 3) => {
   try {
-    const ai = getGenAI();
-    if (!ai) return getDefaultQuestions(count);
+    if (!process.env.GROQ_API_KEY) {
+      console.warn('[Groq] GROQ_API_KEY is not set!');
+      return getDefaultQuestions(count);
+    }
 
     const prompt = `You are an expert technical interviewer. Generate ${count} interview questions and their detailed answers for a ${role} position. The candidate has an experience level of: ${experienceLevel}.
     Format the response EXACTLY as a JSON array of objects, with each object having a "question" and "answer".
     Return ONLY raw JSON.`;
 
-    console.log(`[Gemini] Generating ${count} questions for role="${role}", level="${experienceLevel}"...`);
+    console.log(`[Groq] Generating ${count} questions for role="${role}", level="${experienceLevel}"...`);
 
-    const text = await generateWithFallback(ai, prompt);
+    const text = await generateWithGroq(prompt);
     const parsed = safeParseJSON(text);
 
     // Ensure it's an array
     const questions = Array.isArray(parsed) ? parsed : parsed.questions || [];
 
     if (questions.length === 0) {
-      console.warn('[Gemini] Parsed response had 0 questions, using fallback');
+      console.warn('[Groq] Parsed response had 0 questions, using fallback');
       return getDefaultQuestions(count);
     }
 
-    console.log(`[Gemini] Successfully parsed ${questions.length} questions`);
+    console.log(`[Groq] Successfully parsed ${questions.length} questions`);
     return questions;
 
   } catch (error) {
-    console.error('[Gemini] Error generating questions:', error.message);
+    console.error('[Groq] Error generating questions:', error.message);
     return getDefaultQuestions(count);
   }
 };
@@ -132,19 +125,20 @@ export const generateInterviewQuestions = async (role, experienceLevel, count = 
 // ✅ Generate Explanation
 export const generateExplanation = async (question, answer) => {
   try {
-    const ai = getGenAI();
-    if (!ai) return "Fallback Explanation";
+    if (!process.env.GROQ_API_KEY) {
+      return "Fallback Explanation (GROQ_API_KEY not set)";
+    }
 
     const prompt = `Explain in simple terms:
 
 Question: ${question}
 Answer: ${answer}`;
 
-    const text = await generateWithFallback(ai, prompt);
+    const text = await generateWithGroq(prompt);
     return text;
 
   } catch (error) {
-    console.error('[Gemini] Error generating explanation:', error.message);
+    console.error('[Groq] Error generating explanation:', error.message);
     return "Failed to generate explanation.";
   }
 };

@@ -1,8 +1,13 @@
 import fs from 'fs';
-import { GoogleGenAI } from '@google/genai';
+import Groq from "groq-sdk";
 
-// Models to try in order (first available wins)
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
+// Initialize Groq
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
+
+const MODEL = "llama-3.3-70b-versatile";
+
 /**
  * Extract raw text from a PDF file on disk.
  * Uses dynamic import() to load the CJS-only pdf-parse package in ESM.
@@ -26,33 +31,33 @@ export const extractTextFromPDF = async (filePath) => {
 };
 
 /**
- * Try generating content with model fallback.
- * Attempts each model in MODELS list; falls back to next on failure.
+ * Generate content using Groq API.
  */
-const generateWithFallback = async (ai, prompt) => {
-  let lastError = null;
+const generateWithGroq = async (prompt) => {
+  try {
+    console.log(`[Resume] Calling Groq with model: ${MODEL}`);
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: MODEL,
+      response_format: { type: "json_object" }
+    });
 
-  for (const modelName of MODELS) {
-    try {
-      console.log(`[Resume] Trying model: ${modelName}`);
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-      });
-      const text = response.text;
-      console.log(`[Resume] Success with ${modelName}, response length: ${text.length}`);
-      return text;
-    } catch (err) {
-      console.warn(`[Resume] ${modelName} failed: ${err.message}`);
-      lastError = err;
-    }
+    const text = completion.choices[0].message.content;
+    console.log(`[Resume] Success with Groq, response length: ${text.length}`);
+    return text;
+  } catch (err) {
+    console.error(`[Resume] Groq failed: ${err.message}`);
+    throw err;
   }
-
-  throw lastError || new Error('All Gemini models failed');
 };
 
 /**
- * Safely extract and parse JSON from Gemini's response text.
+ * Safely extract and parse JSON from response text.
  * Handles markdown fences, leading/trailing prose, etc.
  */
 const safeParseJSON = (raw) => {
@@ -68,7 +73,7 @@ const safeParseJSON = (raw) => {
   let closeChar = '';
 
   if (startArr === -1 && startObj === -1) {
-    throw new Error('No JSON structure found in Gemini response');
+    throw new Error('No JSON structure found in response');
   } else if (startArr === -1) {
     startIndex = startObj; openChar = '{'; closeChar = '}';
   } else if (startObj === -1) {
@@ -98,7 +103,7 @@ const safeParseJSON = (raw) => {
   }
 
   if (endIndex === -1) {
-    throw new Error('Malformed JSON in Gemini response – no matching bracket');
+    throw new Error('Malformed JSON in response – no matching bracket');
   }
 
   const jsonStr = text.substring(startIndex, endIndex + 1);
@@ -106,20 +111,18 @@ const safeParseJSON = (raw) => {
 };
 
 /**
- * Send the resume text to Gemini and get back interview Q&A.
+ * Send the resume text to Groq and get back interview Q&A.
  * @param {string} resumeText – raw text extracted from PDF
  * @param {number} count – number of questions to generate
  * @returns {Promise<{role: string, experienceLevel: string, questions: Array<{question: string, answer: string}>}>}
  */
 export const analyzeResumeWithGemini = async (resumeText, count = 5) => {
-  if (!process.env.GEMINI_API_KEY) {
-    console.warn('[Resume] GEMINI_API_KEY is not set – returning mock data');
+  if (!process.env.GROQ_API_KEY) {
+    console.warn('[Resume] GROQ_API_KEY is not set – returning mock data');
     return getMockResumeAnalysis(count);
   }
 
   try {
-    const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
     const prompt = `You are a senior technical interviewer. Below is a candidate's resume.
 
 ---
@@ -131,7 +134,7 @@ Perform the following:
 2. Estimate their experience level as one of: "Fresher", "1-3 years", "3-5 years", "5+ years".
 3. Generate ${count} challenging, personalized interview questions with detailed answers. Base these on the skills, projects, and experience mentioned in the resume.
 
-Return your response ONLY as a valid JSON object with this exact structure (no markdown, no code fences):
+Return your response ONLY as a valid JSON object with this exact structure:
 {
   "role": "<detected role>",
   "experienceLevel": "<estimated experience>",
@@ -140,9 +143,9 @@ Return your response ONLY as a valid JSON object with this exact structure (no m
   ]
 }`;
 
-    console.log(`[Resume] Sending resume (${resumeText.length} chars) to Gemini...`);
+    console.log(`[Resume] Sending resume (${resumeText.length} chars) to Groq...`);
 
-    const text = await generateWithFallback(genAI, prompt);
+    const text = await generateWithGroq(prompt);
     const parsed = safeParseJSON(text);
 
     // Validate shape
@@ -160,7 +163,7 @@ Return your response ONLY as a valid JSON object with this exact structure (no m
     }
 
     if (analysis.questions.length === 0) {
-      console.warn('[Resume] Gemini returned 0 questions, using fallback');
+      console.warn('[Resume] Groq returned 0 questions, using fallback');
       return getMockResumeAnalysis(count);
     }
 
@@ -168,13 +171,13 @@ Return your response ONLY as a valid JSON object with this exact structure (no m
     return analysis;
 
   } catch (error) {
-    console.error('[Resume] Error analysing resume with Gemini:', error.message);
+    console.error('[Resume] Error analysing resume with Groq:', error.message);
     return getMockResumeAnalysis(count);
   }
 };
 
 /**
- * Fallback mock data when Gemini is unavailable.
+ * Fallback mock data when Groq is unavailable.
  */
 const getMockResumeAnalysis = (count) => ({
   role: 'General Developer',
