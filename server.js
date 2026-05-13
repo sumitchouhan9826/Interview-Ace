@@ -1,15 +1,16 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-
+import helmet from 'helmet';
 import connectDB from './config/db.js';
-import { errorHandler, notFound } from './middleware/error.middleware.js';
+import errorHandler, { notFound } from './middleware/errorMiddleware.js';
 
 // Route imports
-import authRoutes from './routes/auth.routes.js';
+import authRoutes from './routes/authRoutes.js';
 import sessionRoutes from './routes/session.routes.js';
 import questionRoutes from './routes/question.routes.js';
 import resumeRoutes from './routes/resume.routes.js';
+import { apiLimiter } from './middleware/rateLimiter.js';
 
 // Connect to MongoDB
 connectDB();
@@ -17,8 +18,10 @@ connectDB();
 const app = express();
 
 // Middleware
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
+app.use(apiLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);

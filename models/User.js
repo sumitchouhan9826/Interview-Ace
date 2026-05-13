@@ -26,6 +26,32 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: 'https://ui-avatars.com/api/?name=User&background=random',
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    otpHash: {
+      type: String,
+      select: false,
+    },
+    otpExpiry: {
+      type: Date,
+      select: false,
+    },
+    otpAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    lastOtpSentAt: {
+      type: Date,
+      select: false,
+    },
+    resetPasswordVerified: {
+      type: Boolean,
+      default: false,
+      select: false,
+    },
   },
   {
     timestamps: true,
