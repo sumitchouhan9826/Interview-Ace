@@ -1,8 +1,14 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema(
   {
+    // Clerk user ID — primary link between Clerk and MongoDB
+    clerkId: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
     name: {
       type: String,
       required: [true, 'Please add a name'],
@@ -11,66 +17,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please add an email'],
       unique: true,
-      match: [
-        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-        'Please add a valid email',
-      ],
-    },
-    password: {
-      type: String,
-      required: [true, 'Please add a password'],
-      minlength: 6,
-      select: false, // Don't return password by default
     },
     profileImage: {
       type: String,
       default: 'https://ui-avatars.com/api/?name=User&background=random',
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    otpHash: {
-      type: String,
-      select: false,
-    },
-    otpExpiry: {
-      type: Date,
-      select: false,
-    },
-    otpAttempts: {
-      type: Number,
-      default: 0,
-      select: false,
-    },
-    lastOtpSentAt: {
-      type: Date,
-      select: false,
-    },
-    resetPasswordVerified: {
-      type: Boolean,
-      default: false,
-      select: false,
     },
   },
   {
     timestamps: true,
   }
 );
-
-// Encrypt password using bcrypt
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    next();
-  }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
-
-// Match user entered password to hashed password in database
-userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
 
 const User = mongoose.model('User', userSchema);
 export default User;

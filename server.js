@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import { clerkMiddleware } from '@clerk/express';
 import connectDB from './config/db.js';
 import errorHandler, { notFound } from './middleware/errorMiddleware.js';
 
@@ -16,11 +17,13 @@ import { apiLimiter } from './middleware/rateLimiter.js';
 connectDB();
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+app.use(clerkMiddleware()); // Clerk session middleware — populates req.auth
 app.use(apiLimiter);
 
 // Routes
